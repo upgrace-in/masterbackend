@@ -67,8 +67,8 @@ app.post('/submitForApproval', async (req, res) => {
     const data = req.body
     // Change the names accordingly
     let zipCode = data.zipCode
-    let emailAddress = data.emailAddress
-    let phoneNumber = data.phoneNumber
+    let emailAddress = data.applicantemail
+    let phoneNumber = data.applicantphone
     try {
         let finalRes;
         // Check if his zipcode matches
@@ -86,6 +86,9 @@ app.post('/submitForApproval', async (req, res) => {
         })
 
         // Save to db wwith final assertion(response) if passed or not
+        await Application.add({ data, result: finalRes.response })
+
+        res.send(finalRes)
 
     } catch (e) {
         console.log(e);
