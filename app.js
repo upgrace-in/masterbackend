@@ -9,6 +9,7 @@ require('dotenv').config()
 const Application = db.collection('Application')
 const RedFlagged = db.collection('RedFlagged')
 const ZipCodes = db.collection('ZipCode')
+const Admin = db.collection('Admin')
 
 app.listen(process.env.PORT, () => console.log("Running"))
 
@@ -94,6 +95,16 @@ app.post('/submitForApproval', async (req, res) => {
         console.log(e);
         res.send({ msg: false, response: "error" })
     }
+})
+
+app.post('/adminLogin', async (req, res) => {
+    const snapshot = await Admin.get();
+    let admin = snapshot.docs[0].data()['username']
+    let adminPassword = snapshot.docs[0].data()['password']
+    if ((req.body.username === admin) && (req.body.password === adminPassword))
+        res.send({ msg: true })
+    else
+        res.send({ msg: false })
 })
 
 module.exports = app
