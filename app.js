@@ -32,6 +32,7 @@ app.post('/updateZipCodes', async (req, res) => {
 
 app.post('/updateRedUsers', async (req, res) => {
     try {
+        console.log(req.body);
         await RedFlagged.doc("redflagged").set({ emails: req.body.emails, phoneNumbers: req.body.phoneNumbers });
         res.send({ msg: true })
     } catch (e) {
