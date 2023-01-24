@@ -20,6 +20,53 @@ app.get('/', (req, res) => {
     res.send("Hey Hari Bol !!! It's Working...")
 })
 
+app.post('/updateZipCodes', async (req, res) => {
+    try {
+        await ZipCodes.doc("zipcodes").set({ zipcodes: req.body.zipArr });
+        res.send({ msg: true })
+    } catch (e) {
+        console.log(e);
+        res.send({ msg: false })
+    }
+})
+
+app.post('/updateRedUsers', async (req, res) => {
+    try {
+        await RedFlagged.doc("redflagged").set({ emails: req.body.emails, phoneNumbers: req.body.phoneNumbers });
+        res.send({ msg: true })
+    } catch (e) {
+        console.log(e);
+        res.send({ msg: false })
+    }
+})
+
+app.get('/getZipCodes', async (req, res) => {
+    const snapshot = await ZipCodes.get();
+    if (snapshot.empty) {
+        res.send({ msg: false })
+    } else {
+        res.send({ msg: true, data: snapshot.docs[0].data()['zipcodes'] })
+    }
+})
+
+app.get('/getRedFlaggedUsers', async (req, res) => {
+    const snapshot = await RedFlagged.get();
+    if (snapshot.empty) {
+        res.send({ msg: false })
+    } else {
+        res.send({ msg: true, data: snapshot.docs[0].data() })
+    }
+})
+
+app.get('/getApplications', async (req, res) => {
+    const snapshot = await Application.get();
+    if (snapshot.empty) {
+        res.send({ msg: false })
+    } else {
+        res.send({ msg: true, data: snapshot.docs.map(doc => doc.data()) })
+    }
+})
+
 async function validateZipCodes(zipCode) {
     // Fetch the allowed zipcodes from DB
     const snapshot = await ZipCodes.get();
