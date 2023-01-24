@@ -1,6 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const { db } = require('./config')
+const crypto = require('crypto')
 const app = express()
 
 require('dotenv').config()
@@ -47,6 +48,15 @@ app.get('/getZipCodes', async (req, res) => {
         res.send({ msg: false })
     } else {
         res.send({ msg: true, data: snapshot.docs[0].data()['zipcodes'] })
+    }
+})
+
+app.get('/getApplications', async (req, res) => {
+    const snapshot = await Application.get();
+    if (snapshot.empty) {
+        res.send({ msg: false })
+    } else {
+        res.send({ msg: true, data: snapshot.docs.map(doc => doc.data()) })
     }
 })
 
@@ -134,8 +144,9 @@ app.post('/submitForApproval', async (req, res) => {
                 finalRes = { msg: false, response: "ZipNotMatched" }
         })
 
+        let uid = crypto.randomBytes(6).toString('hex');
         // Save to db wwith final assertion(response) if passed or not
-        await Application.add({ data, result: finalRes.response })
+        await Application.add({ data, uid: uid, result: finalRes.response })
 
         res.send(finalRes)
 
