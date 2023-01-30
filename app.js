@@ -4,6 +4,7 @@ const { db } = require('./config')
 const crypto = require('crypto')
 const app = express()
 const applicationMail = require('./mails/applicationMail')
+const otpMail = require('./mails/otpMail')
 
 require('dotenv').config()
 
@@ -11,8 +12,8 @@ require('dotenv').config()
 const Application = db.collection('Application')
 const RedFlagged = db.collection('RedFlagged')
 const ZipCodes = db.collection('ZipCode')
-const Admin = db.collection('Admin')
 const Users = db.collection('Users')
+const OTPs = db.collection('OTPs')
 
 app.listen(process.env.PORT, () => console.log("Running"))
 
@@ -196,7 +197,7 @@ app.post('/submitForApproval', async (req, res) => {
         await Application.doc(uid).set({ data, uid: uid, result: finalRes.response })
 
         // two spaces are for toemail, subject
-        applicationMail('noreply.masterslease@gmail.com', 'You Have A New Application Waiting')
+        await applicationMail('noreply.masterslease@gmail.com', 'You Have A New Application Waiting')
         res.send(finalRes)
 
     } catch (e) {
@@ -205,9 +206,9 @@ app.post('/submitForApproval', async (req, res) => {
     }
 })
 
-function tryLogin(email, password, req, res) {
+function tryLogin(email, password, req, res, response) {
     if ((req.body.emailAddress === email) && (req.body.password === password))
-        res.send({ msg: true })
+        res.send({ msg: true, response: response })
     else
         res.send({ msg: false })
 }
@@ -219,9 +220,34 @@ app.post('/adminLogin', async (req, res) => {
     } else {
         let email = snapshot.docs[0].data()['emailAddress']
         let password = snapshot.docs[0].data()['password']
-        tryLogin(email, password, req, res)
+        tryLogin(email, password, req, res, snapshot.docs[0].data())
     }
 
+})
+
+app.get('/sendOTP', async (req, res) => {
+    try {
+        let otp = Math.floor(100000 + Math.random() * 900000)
+        await OTPs.doc(req.query.emailAddress).set({ emailAddress: req.query.emailAddress, otp: otp });
+        // Send as email
+        await otpMail(req.query.emailAddress, 'Email Verification - Masterslease', otp)
+        res.send({ msg: true })
+    } catch (e) {
+        console.log(e);
+        res.send({ msg: false })
+    }
+})
+
+app.get('/checkOTP', async (req, res) => {
+    const snapshot = await OTPs.where('emailAddress', '==', req.query.emailAddress).get();
+    if (snapshot.empty) {
+        res.send({ msg: false })
+    } else {
+        if (snapshot.docs[0].data()['otp'] === parseInt(req.query.otp)) {
+            res.send({ msg: true })
+        } else
+            res.send({ msg: false })
+    }
 })
 
 module.exports = app

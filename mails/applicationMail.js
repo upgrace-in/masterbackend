@@ -1,6 +1,6 @@
 const Sendmail = require('./sendMail.js')
 
-function applicationMail(toMail, subject) {
+async function applicationMail(toMail, subject) {
 
     html = `<!DOCTYPE html>
     <html lang="en">
@@ -55,7 +55,7 @@ function applicationMail(toMail, subject) {
     
     </html>`
 
-    Sendmail(toMail, subject, html)
+    return await Sendmail(toMail, subject, html)
 }
 
 module.exports = applicationMail

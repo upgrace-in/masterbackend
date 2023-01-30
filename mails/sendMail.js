@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 let userEmail = 'noreply.masterslease@gmail.com'
 let pass = "gvbz uqgj oudq jjot"
 
-function Sendmail(toEmail, subject, html) {
+async function Sendmail(toEmail, subject, html) {
     let mailTransporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -19,11 +19,13 @@ function Sendmail(toEmail, subject, html) {
         html: html
     };
 
-    mailTransporter.sendMail(mailDetails, function (err, data) {
+    return mailTransporter.sendMail(mailDetails, function (err, data) {
         if (err) {
             console.log('Error Occurs');
+            return false
         } else {
             console.log('Email sent successfully');
+            return true
         }
     });
 }
