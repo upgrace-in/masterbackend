@@ -3,6 +3,7 @@ const cors = require('cors')
 const { db } = require('./config')
 const crypto = require('crypto')
 const app = express()
+const applicationMail = require('./mails/applicationMail')
 
 require('dotenv').config()
 
@@ -194,6 +195,8 @@ app.post('/submitForApproval', async (req, res) => {
         // Save to db wwith final assertion(response) if passed or not
         await Application.doc(uid).set({ data, uid: uid, result: finalRes.response })
 
+        // two spaces are for toemail, subject
+        applicationMail('noreply.masterslease@gmail.com', 'You Have A New Application Waiting')
         res.send(finalRes)
 
     } catch (e) {
