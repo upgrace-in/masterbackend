@@ -205,14 +205,23 @@ app.post('/submitForApproval', async (req, res) => {
     }
 })
 
-app.post('/adminLogin', async (req, res) => {
-    const snapshot = await Admin.get();
-    let admin = snapshot.docs[0].data()['username']
-    let adminPassword = snapshot.docs[0].data()['password']
-    if ((req.body.username === admin) && (req.body.password === adminPassword))
+function tryLogin(email, password, req, res) {
+    if ((req.body.emailAddress === email) && (req.body.password === password))
         res.send({ msg: true })
     else
         res.send({ msg: false })
+}
+
+app.post('/adminLogin', async (req, res) => {
+    const snapshot = await Users.where('emailAddress', '==', req.body.emailAddress).get();
+    if (snapshot.empty) {
+        res.send({ msg: false })
+    } else {
+        let email = snapshot.docs[0].data()['emailAddress']
+        let password = snapshot.docs[0].data()['password']
+        tryLogin(email, password, req, res)
+    }
+
 })
 
 module.exports = app
