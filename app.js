@@ -11,6 +11,7 @@ const Application = db.collection('Application')
 const RedFlagged = db.collection('RedFlagged')
 const ZipCodes = db.collection('ZipCode')
 const Admin = db.collection('Admin')
+const Users = db.collection('Users')
 
 app.listen(process.env.PORT, () => console.log("Running"))
 
@@ -19,6 +20,17 @@ app.use(cors())
 
 app.get('/', (req, res) => {
     res.send("Hey Hari Bol !!! It's Working...")
+})
+
+// Admin
+
+app.get('/getZipCodes', async (req, res) => {
+    const snapshot = await ZipCodes.get();
+    if (snapshot.empty) {
+        res.send({ msg: false })
+    } else {
+        res.send({ msg: true, data: snapshot.docs[0].data()['zipcodes'] })
+    }
 })
 
 app.post('/updateZipCodes', async (req, res) => {
@@ -31,38 +43,6 @@ app.post('/updateZipCodes', async (req, res) => {
     }
 })
 
-app.post('/updateRedUsers', async (req, res) => {
-    try {
-        await RedFlagged.doc("redflagged").set({ 
-            emails: req.body.emails, 
-            phoneNumbers: req.body.phoneNumbers,
-            addresses: req.body.addresses, 
-         });
-        res.send({ msg: true })
-    } catch (e) {
-        console.log(e);
-        res.send({ msg: false })
-    }
-})
-
-app.get('/getZipCodes', async (req, res) => {
-    const snapshot = await ZipCodes.get();
-    if (snapshot.empty) {
-        res.send({ msg: false })
-    } else {
-        res.send({ msg: true, data: snapshot.docs[0].data()['zipcodes'] })
-    }
-})
-
-app.get('/getApplications', async (req, res) => {
-    const snapshot = await Application.get();
-    if (snapshot.empty) {
-        res.send({ msg: false })
-    } else {
-        res.send({ msg: true, data: snapshot.docs.map(doc => doc.data()) })
-    }
-})
-
 app.get('/getRedFlaggedUsers', async (req, res) => {
     const snapshot = await RedFlagged.get();
     if (snapshot.empty) {
@@ -72,12 +52,69 @@ app.get('/getRedFlaggedUsers', async (req, res) => {
     }
 })
 
+app.post('/updateRedUsers', async (req, res) => {
+    try {
+        await RedFlagged.doc("redflagged").set({
+            emails: req.body.emails,
+            phoneNumbers: req.body.phoneNumbers,
+            addresses: req.body.addresses,
+        });
+        res.send({ msg: true })
+    } catch (e) {
+        console.log(e);
+        res.send({ msg: false })
+    }
+})
+
+// AddUsers
+
+app.get('/getUsers', async (req, res) => {
+    const snapshot = await Users.get();
+    if (snapshot.empty) {
+        res.send({ msg: false })
+    } else {
+        res.send({ msg: true, data: snapshot.docs.map(doc => doc.data()) })
+    }
+})
+
+app.post('/insertUser', async (req, res) => {
+    try {
+        await Users.doc(req.body.emailAddress).set(req.body)
+        res.send({ msg: true })
+    } catch (e) {
+        console.log(e);
+        res.send({ msg: false })
+    }
+})
+
+app.post('/deleteUser', async (req, res) => {
+    try {
+        await Users.doc(req.body.emailAddress).delete()
+        res.send({ msg: true })
+    } catch (e) {
+        console.log(e);
+        res.send({ msg: false })
+    }
+})
+
+// Application
+
 app.get('/getApplications', async (req, res) => {
     const snapshot = await Application.get();
     if (snapshot.empty) {
         res.send({ msg: false })
     } else {
         res.send({ msg: true, data: snapshot.docs.map(doc => doc.data()) })
+    }
+})
+
+app.get('/deleteApplications', async (req, res) => {
+    try {
+        await Application.doc(req.query.uid).delete()
+        res.send({ msg: true })
+    } catch (e) {
+        console.log(e);
+        res.send({ msg: false })
     }
 })
 
@@ -106,7 +143,7 @@ async function matching(arr, val) {
     return false
 }
 
-async function validateUser(userEmail, userPhone) {
+async function validateUser(userEmail, userPhone, userAddress) {
     // Fetch the redFlagged email & Phone
     const snapshot = await RedFlagged.get();
     if (snapshot.empty) {
@@ -115,11 +152,16 @@ async function validateUser(userEmail, userPhone) {
     } else {
         const redEmails = snapshot.docs[0].data()['emails']
         const redPhones = snapshot.docs[0].data()['phoneNumbers']
+        const redAddresses = snapshot.docs[0].data()['addresses']
         // Matching the emails
         let matched = await matching(redEmails, userEmail)
         // If emails didn't got matched check for the phone numbers
         if (matched === false) {
             matched = await matching(redPhones, userPhone.toString())
+            if (matched === false) {
+                // Match with the redAddresses
+                matched = await matching(redAddresses, userAddress.toString())
+            }
         }
         return matched
     }
@@ -131,13 +173,14 @@ app.post('/submitForApproval', async (req, res) => {
     let zipCode = data.zipCode
     let emailAddress = data.applicantemail
     let phoneNumber = data.applicantphone
+    let address = data.streetAddress_apartment
     try {
         let finalRes;
         // Check if his zipcode matches
         await validateZipCodes(zipCode).then(async val => {
             if (val) {
                 // If Zip Matched Then Check if the user is valid to allow
-                await validateUser(emailAddress, phoneNumber).then(val => {
+                await validateUser(emailAddress, phoneNumber, address).then(val => {
                     if (val)
                         finalRes = { msg: true, response: "Approved" }
                     else
@@ -149,7 +192,7 @@ app.post('/submitForApproval', async (req, res) => {
 
         let uid = crypto.randomBytes(6).toString('hex');
         // Save to db wwith final assertion(response) if passed or not
-        await Application.add({ data, uid: uid, result: finalRes.response })
+        await Application.doc(uid).set({ data, uid: uid, result: finalRes.response })
 
         res.send(finalRes)
 
