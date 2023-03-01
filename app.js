@@ -1,6 +1,6 @@
 const express = require('express')
 const cors = require('cors')
-const { db } = require('./config')
+const { firebase, db } = require('./config')
 const crypto = require('crypto')
 const app = express()
 const applicationMail = require('./mails/applicationMail')
@@ -8,10 +8,11 @@ const otpMail = require('./mails/otpMail')
 
 require('dotenv').config()
 
+
 // Applications
 const Application = db.collection('Application')
 const RedFlagged = db.collection('RedFlagged')
-const ZipCodes = db.collection('ZipCode')
+const ZipCodes = db.collection('ZipCodes')
 const Users = db.collection('Users')
 const OTPs = db.collection('OTPs')
 
@@ -25,19 +26,45 @@ app.get('/', (req, res) => {
 })
 
 // Admin
-
 app.get('/getZipCodes', async (req, res) => {
     const snapshot = await ZipCodes.get();
+    let data = snapshot.docs.map(doc => {
+        return { id: doc.id, data: doc.data() }
+    })
     if (snapshot.empty) {
         res.send({ msg: false })
     } else {
-        res.send({ msg: true, data: snapshot.docs[0].data()['zipcodes'] })
+        res.send({ msg: true, data: data })
     }
 })
 
-app.post('/updateZipCodes', async (req, res) => {
+// add zipcodes
+app.post('/addZipCodes', async (req, res) => {
     try {
-        await ZipCodes.doc("zipcodes").set({ zipcodes: req.body.zipArr });
+        await ZipCodes.doc(req.body.storeEmail).update({
+            "zipcodes": firebase.firestore.FieldValue.arrayUnion(req.body.zipCode)
+        })
+        res.send({ msg: true })
+    } catch (e) {
+        await ZipCodes.doc(req.body.storeEmail).set({
+            "zipcodes": [req.body.zipCode]
+        }).then(val => {
+            res.send({ msg: true })
+        }).catch(err => {
+            console.log(e);
+            res.send({ msg: false })
+        })
+
+    }
+})
+
+// delete zipcodes
+app.post('/deleteZipCodes', async (req, res) => {
+    try {
+        let mail = req.body.storeEmail
+        await ZipCodes.doc(mail).update({
+            "zipcodes": firebase.firestore.FieldValue.arrayRemove(req.body.zipCode)
+        })
         res.send({ msg: true })
     } catch (e) {
         console.log(e);
@@ -100,7 +127,6 @@ app.post('/deleteUser', async (req, res) => {
 })
 
 // Application
-
 app.get('/getApplications', async (req, res) => {
     const snapshot = await Application.get();
     if (snapshot.empty) {
@@ -119,6 +145,14 @@ app.get('/deleteApplications', async (req, res) => {
         res.send({ msg: false })
     }
 })
+
+/*
+    mtv001@masterslease.com    
+    mtv002@masterslease.com
+    mtv003@masterslease.com 
+    mtv004@masterslease.com 
+    mtv007@masterslease.com
+*/
 
 async function validateZipCodes(zipCode) {
     // Fetch the allowed zipcodes from DB
