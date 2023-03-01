@@ -161,16 +161,24 @@ async function validateZipCodes(zipCode) {
         console.log("ZipCodes are empty !!!");
         return false
     } else {
-        const zipCodes = snapshot.docs[0].data()['zipcodes']
         let matched = false
-        zipCodes.map(data => {
-            // Match it with the param and return true or false
-            if (data === zipCode)
-                matched = true
-        })
-        return matched
+        let mail = null;
+        let docs = snapshot.docs
+        for (var j = 0; j < docs.length; j++) {
+            const allowedZips = docs[j].data().zipcodes
+            for (var i = 0; i < allowedZips.length; i++) {
+                if (allowedZips[i] === zipCode.toString()) {
+                    mail = docs[j].id
+                    matched = true;
+                    return { response: matched, mail: mail }
+                }
+            }
+        }
+        return { response: matched, mail: mail }
     }
 }
+
+
 
 async function matching(arr, val) {
     for (var i = 0; i < arr.length; i++)
@@ -212,10 +220,13 @@ app.post('/submitForApproval', async (req, res) => {
     let address = data.streetAddress_apartment
     try {
         let finalRes;
+        let storeEmail;
         // Check if his zipcode matches
         await validateZipCodes(zipCode).then(async val => {
-            if (val) {
+            // if val.repsonse is true if will return the store mail
+            if (val.response) {
                 // If Zip Matched Then Check if the user is valid to allow
+                storeMail = val.mail
                 await validateUser(emailAddress, phoneNumber, address).then(val => {
                     if (val)
                         finalRes = { msg: true, response: "Approved" }
@@ -231,7 +242,8 @@ app.post('/submitForApproval', async (req, res) => {
         await Application.doc(uid).set({ data, uid: uid, result: finalRes.response })
 
         // two spaces are for toemail, subject
-        await applicationMail('noreply.masterslease@gmail.com', 'You Have A New Application Waiting')
+        // 'noreply.masterslease@gmail.com'
+        await applicationMail(storeEmail, 'You Have A New Application Waiting')
         res.send(finalRes)
 
     } catch (e) {
